@@ -1,0 +1,21 @@
+{
+  "name": "aaja-live",
+  "version": "1.0.0",
+  "description": "Production-ready anonymous real-time video chat platform",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"yarn workspace client dev\" \"yarn workspace server dev\"",
+    "build": "yarn workspace client build && yarn workspace server build",
+    "start": "yarn workspace server start",
+    "test": "yarn workspace client test && yarn workspace server test",
+    "lint": "yarn workspace client lint && yarn workspace server lint",
+    "type-check": "yarn workspace client type-check && yarn workspace server type-check"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
