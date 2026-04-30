@@ -5,6 +5,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createClient } from 'redis';
+import fs from 'fs';
+import path from 'path';
 import { config } from './config/index.js';
 import { MatchmakingService } from './services/matchmaking.js';
 import { ModerationService } from './services/moderation.js';
@@ -95,6 +97,23 @@ app.get('/status', async (req: Request, res: Response) => {
 // API Routes
 app.use('/api/users', createUserRouter());
 app.use('/api/matching', createMatchmakingRouter());
+
+const clientDistCandidates = [
+  path.resolve(process.cwd(), '../client/dist'),
+  path.resolve(process.cwd(), 'client/dist'),
+];
+
+const clientDistPath = clientDistCandidates.find((candidate) =>
+  fs.existsSync(path.join(candidate, 'index.html'))
+);
+
+if (clientDistPath) {
+  app.use(express.static(clientDistPath));
+
+  app.get(/^\/(?!api).*/, (req: Request, res: Response) => {
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 // Stripe webhook
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {

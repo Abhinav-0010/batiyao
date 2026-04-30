@@ -34,8 +34,8 @@ services:
   # Application Server
   app:
     build:
-      context: ../../
-      dockerfile: infrastructure/docker/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -66,8 +66,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
+      - ./infrastructure/docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/docker/ssl:/etc/nginx/ssl:ro
     depends_on:
       - app
     healthcheck:
