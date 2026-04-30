@@ -16,5 +16,4 @@ build/
 coverage/
 .nyc_output/
 yarn.lock
-package-lock.json
 pnpm-lock.yaml
