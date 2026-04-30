@@ -8,12 +8,12 @@
     "server"
   ],
   "scripts": {
-    "dev": "concurrently \"yarn workspace client dev\" \"yarn workspace server dev\"",
-    "build": "yarn workspace client build && yarn workspace server build",
-    "start": "yarn workspace server start",
-    "test": "yarn workspace client test && yarn workspace server test",
-    "lint": "yarn workspace client lint && yarn workspace server lint",
-    "type-check": "yarn workspace client type-check && yarn workspace server type-check"
+    "dev": "concurrently \"npm run --workspace client dev\" \"npm run --workspace server dev\"",
+    "build": "npm run --workspace client build && npm run --workspace server build",
+    "start": "npm run --workspace server start",
+    "test": "npm run --workspace client test && npm run --workspace server test",
+    "lint": "npm run --workspace client lint && npm run --workspace server lint",
+    "type-check": "npm run --workspace client type-check && npm run --workspace server type-check"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"

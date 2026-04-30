@@ -1,0 +1,140 @@
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: aaja-postgres
+    runtime: postgres15
+    ipAddress: private
+    plan: standard
+    region: oregon
+    disk:
+      name: postgres-data
+      sizeGB: 100
+    envVars:
+      - key: POSTGRES_USER
+        value: aaja_user
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+      - key: POSTGRES_DB
+        value: aaja_live
+
+  # Redis Cache
+  - type: pserv
+    name: aaja-redis
+    runtime: redis7
+    ipAddress: private
+    plan: standard
+    region: oregon
+    disk:
+      name: redis-data
+      sizeGB: 50
+
+  # Backend API Server
+  - type: web
+    name: aaja-server
+    runtime: node
+    plan: standard
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aaja-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: aaja-redis
+          type: pserv
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://aaja-live.onrender.com
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: NSFW_MODEL_THRESHOLD
+        value: "0.6"
+      - key: MODERATION_CHECK_INTERVAL
+        value: "5000"
+      - key: LOG_LEVEL
+        value: info
+    autoDeploy: true
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - server/**
+        - client/**
+        - package.json
+        - package-lock.json
+
+  # Frontend React App
+  - type: web
+    name: aaja-client
+    runtime: node
+    plan: standard
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npx serve -s dist -l 5173
+    envVars:
+      - key: VITE_API_URL
+        value: https://aaja-server.onrender.com
+      - key: VITE_WS_URL
+        value: wss://aaja-server.onrender.com
+    autoDeploy: true
+    routes:
+      - path: /
+        destination: /index.html
+        status: 200
+    buildFilter:
+      paths:
+        - client/**
+        - package.json
+        - package-lock.json
+
+  # Optional: Web Service for Static Docs
+  - type: web
+    name: aaja-docs
+    runtime: static
+    staticPublishPath: ./docs
+    autoDeploy: false
+    buildFilter:
+      paths:
+        - docs/**
+
+databases:
+  - name: aaja-postgres
+    databaseName: aaja_live
+    user: aaja_user
+    plan: standard
+    region: oregon
+    postgresMajorVersion: 15
+
+# Environment variables guide:
+# NODE_ENV: Set to 'production' for production deployment
+# PORT: Server port (default 3000)
+# DATABASE_URL: PostgreSQL connection string (auto-populated from database)
+# REDIS_URL: Redis connection string (auto-populated from service)
+# JWT_SECRET: Secret for JWT token signing (auto-generated)
+# CORS_ORIGIN: Frontend domain for CORS policy
+# STRIPE_SECRET_KEY: Stripe secret key (must be set manually)
+# STRIPE_PUBLISHABLE_KEY: Stripe publishable key (must be set manually)
+# STRIPE_WEBHOOK_SECRET: Stripe webhook secret (must be set manually)
+# NSFW_MODEL_THRESHOLD: Confidence threshold for NSFW detection (0.0-1.0)
+# MODERATION_CHECK_INTERVAL: Milliseconds between moderation checks
+# LOG_LEVEL: Logging level (debug, info, warn, error)
+
+# Deployment notes:
+# 1. Push this render.yaml to your repository
+# 2. Connect your GitHub repository to Render: https://dashboard.render.com
+# 3. Select "Infrastructure as Code" during setup
+# 4. Render will automatically detect and deploy from render.yaml
+# 5. Add Stripe keys manually in the Render dashboard environment variables
+# 6. Databases and services will be automatically created and linked

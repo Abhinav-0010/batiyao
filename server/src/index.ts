@@ -30,6 +30,8 @@ const matchmakingService = new MatchmakingService(redis);
 const moderationService = new ModerationService(config.moderation.nsfwThreshold);
 const paymentService = new PaymentService();
 const signalingService = new SignalingService(io, redis);
+let redisConnected = false;
+let activePort = config.port;
 
 // Middleware
 app.use(helmet());
@@ -62,7 +64,9 @@ app.get('/health', (req: Request, res: Response) => {
 // Status
 app.get('/status', async (req: Request, res: Response) => {
   try {
-    const stats = await matchmakingService.getQueueStats();
+    const stats = redisConnected
+      ? await matchmakingService.getQueueStats()
+      : { total: 0, byMode: {} };
     const connectedUsers = await signalingService.getConnectedUsers();
 
     const response: ApiResponse = {
@@ -124,18 +128,45 @@ app.use((req: Request, res: Response) => {
 // Start server
 async function start() {
   try {
-    // Connect to Redis
-    await redis.connect();
-    console.log('✅ Redis connected');
+    // Connect to Redis when available, but keep the app bootable in dev if it is not running.
+    try {
+      await redis.connect();
+      redisConnected = true;
+      console.log('✅ Redis connected');
+    } catch (error) {
+      console.warn('⚠️ Redis unavailable, starting in degraded mode');
+    }
 
     // Start matchmaking service
-    await matchmakingService.start();
+    if (redisConnected) {
+      await matchmakingService.start();
+    }
+
+    const listenOnPort = (port: number, retriesLeft: number): void => {
+      const onError = (error: NodeJS.ErrnoException): void => {
+        if (error.code === 'EADDRINUSE' && retriesLeft > 0) {
+          activePort = port + 1;
+          console.warn(`⚠️ Port ${port} is in use, trying ${activePort}`);
+          httpServer.off('error', onError);
+          listenOnPort(activePort, retriesLeft - 1);
+          return;
+        }
+
+        console.error('❌ Failed to start server:', error);
+        process.exit(1);
+      };
+
+      httpServer.once('error', onError);
+      httpServer.listen(port, () => {
+        httpServer.off('error', onError);
+        activePort = port;
+        console.log(`🚀 Server running on port ${port}`);
+        console.log(`📍 Environment: ${config.nodeEnv}`);
+      });
+    };
 
     // Start HTTP server
-    httpServer.listen(config.port, () => {
-      console.log(`🚀 Server running on port ${config.port}`);
-      console.log(`📍 Environment: ${config.nodeEnv}`);
-    });
+    listenOnPort(activePort, 10);
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
